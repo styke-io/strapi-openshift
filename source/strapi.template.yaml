@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: strapi
+objects:
+{% include "strapi.yaml" %}
+
+{% if DATABASE_CLIENT == "postgres" -%}
+{% include "postgres.yaml" %}
+{% elif DATABASE_CLIENT == "mongo" -%}
+{% elif DATABASE_CLIENT == "mysql" -%}
+{% elif DATABASE_CLIENT == "redis" -%}
+{%- endif %}
+
+parameters:
+- name: STRAPI_VERSION
+  displayName: Strapi Version
+  required: true
+  value: latest
+- name: APP_NAME
+  displayName: App Name
+  required: true
+  value: strapi-app
+- name: DATABASE_NAME
+  displayName: Database Name
+  required: true
+  value: strapi
+- name: DATABASE_USERNAME
+  displayName: Database User
+  from: user[A-Z0-9]{3}
+  generate: expression
+  required: true
+- name: DATABASE_PASSWORD
+  displayName: Database Password
+  from: "[a-zA-Z0-9]{16}"
+  generate: expression
+  required: true
+
+- description: Maximum amount of memory the container can use.
+  displayName: Memory Limit
+  name: MEMORY_LIMIT
+  required: true
+  value: 512Mi
+- description: The OpenShift Namespace where the ImageStream resides.
+  displayName: Namespace
+  name: NAMESPACE
+  value: openshift
+- description: The name of the OpenShift Service exposed for the database.
+  displayName: Database Service Name
+  name: DATABASE_SERVICE_NAME
+  required: true
+  value: postgresql
+- description: Volume space available for data, e.g. 512Mi, 2Gi.
+  displayName: Volume Capacity
+  name: VOLUME_CAPACITY
+  required: true
+  value: 1Gi
+- description: Version of PostgreSQL image to be used (9.4, 9.5, 9.6 or latest).
+  displayName: Version of PostgreSQL Image
+  name: POSTGRESQL_VERSION
+  required: true
+  value: "9.4"

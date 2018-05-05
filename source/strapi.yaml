@@ -1,0 +1,107 @@
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    name: strapi
+  spec:
+    tags:
+    - name: '${STRAPI_VERSION}'
+      annotations:
+        description: The strapi image from hub.docker.com/r/styke/strapi-openshift
+        openshift.io/display-name: 'Strapi ${STRAPI_VERSION}'
+        tags: strapi
+        version: '${STRAPI_VERSION}'
+      from:
+        kind: DockerImage
+        name: 'styke/strapi-openshift:${STRAPI_VERSION}'
+      importPolicy:
+        scheduled: true
+
+- kind: DeploymentConfig
+  apiVersion: v1
+  metadata:
+    name: strapi
+  spec:
+    selector:
+      name: strapi
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          name: strapi
+      spec:
+        containers:
+        - image: strapi
+          imagePullPolicy: Always
+          name: strapi
+          env:
+          - name: APP_NAME
+            value: '${APP_NAME}'
+          - name: DATABASE_CLIENT
+            value: '{{ DATABASE_CLIENT }}'
+          - name: DATABASE_NAME
+            valueFrom:
+              secretKeyRef:
+                key: database-name
+                name: "${DATABASE_SERVICE_NAME}"
+          - name: DATABASE_USERNAME
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: "${DATABASE_SERVICE_NAME}"
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: "${DATABASE_SERVICE_NAME}"
+          volumeMounts:
+          - name: strapi-volume
+            mountPath: /usr/src/api/strapi-app
+          livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            tcpSocket:
+              port: 1337
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 1337
+              scheme: HTTP
+            periodSeconds: 10
+        volumes:
+        - name: strapi-volume
+          persistentVolumeClaim:
+            claimName: strapi
+    triggers:
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames:
+        - strapi
+        from:
+          kind: ImageStreamTag
+          name: 'strapi:${STRAPI_VERSION}'
+    - type: ConfigChange
+
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: strapi
+  spec:
+    ports:
+      - name: strapi
+        port: 1337
+        targetPort: 1337
+        deploymentconfig: strapi
+    selector:
+      name: strapi
+
+- kind: PersistentVolumeClaim
+  apiVersion: v1
+  metadata:
+    name: strapi
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
